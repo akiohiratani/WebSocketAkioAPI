@@ -80,10 +80,10 @@ sam delete --stack-name pachinko-ws-customerA
    - 管理者として別ターミナルから接続: `wscat -c "$WSS_URL/?role=admin"`
 
 4. ラウンド開始イベントの送信（管理者側のターミナル）
-   WebSocket ルート `roundStart` に対し、以下メッセージを送信すると、全クライアントへ `roundStart` 通知が配信されます。
+   WebSocket ルート `roundStart` に対し、送信したい整数（例では 7）を `winIndex` として渡します。全クライアントに同じ値が届きます。
    ```json
-   {"action":"roundStart","secret":"$ADMIN_SECRET"}
+   {"action":"roundStart","secret":"$ADMIN_SECRET","winIndex":7}
    ```
 
 5. 受信確認
-   メンバー側の `wscat` セッションに `roundStart` メッセージが届き、`seed` や `startAt` などの抽選パラメータが確認できれば成功です。
+   メンバー側の `wscat` セッションに `roundStart` メッセージが届き、`winIndex` が送信した整数（例: 7）になっていること、`startAt` や `serverNow` が含まれていることを確認してください。
