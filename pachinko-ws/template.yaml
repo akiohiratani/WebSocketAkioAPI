@@ -2,6 +2,28 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Pachinko WebSocket backend (API GW WebSocket + Lambda + DynamoDB)
 
+Parameters:
+  StageName:
+    Type: String
+    Default: Prod
+    Description: Stage name used for the WebSocket endpoint (use branch or customer name)
+  ApiName:
+    Type: String
+    Default: pachinko-ws
+    Description: WebSocket API name (unique per customer/branch)
+  ConnectionsTableName:
+    Type: String
+    Default: pachinko_ws_connections
+    Description: DynamoDB table name for managing WebSocket connections
+  AdminSecretParameter:
+    Type: String
+    Default: /pachinko/admin/secret
+    Description: SSM Parameter Store path that stores the admin secret
+  AdminSecretVersion:
+    Type: String
+    Default: "1"
+    Description: Version number for the admin secret parameter
+
 Globals:
   Function:
     Runtime: nodejs20.x
@@ -13,13 +35,13 @@ Globals:
         TABLE_NAME: !Ref ConnectionsTable
         # WebSocket コネクション管理 API のエンドポイントはデプロイ後に実ランタイムで解決するので
         # コード側で event.requestContext.domainName を使います（固定不要）。
-        ADMIN_SECRET: '{{resolve:ssm:/pachinko/admin/secret:1}}'
+        ADMIN_SECRET: !Sub '{{resolve:ssm:${AdminSecretParameter}:${AdminSecretVersion}}}'
 
 Resources:
   WebSocketApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: pachinko-ws
+      Name: !Ref ApiName
       ProtocolType: WEBSOCKET
       RouteSelectionExpression: "$request.body.action"
 
@@ -88,7 +110,7 @@ Resources:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       ApiId: !Ref WebSocketApi
-      StageName: Prod
+      StageName: !Ref StageName
       AutoDeploy: true
 
   OnConnectFunction:
@@ -162,7 +184,7 @@ Resources:
   ConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: pachinko_ws_connections
+      TableName: !Ref ConnectionsTableName
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: connectionId
@@ -174,4 +196,5 @@ Resources:
 Outputs:
   WebSocketWssUrl:
     Description: WSS endpoint
-    Value: !Sub wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${WebSocketStage}
+    Value: !Sub wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
+  
