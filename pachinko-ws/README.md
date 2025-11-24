@@ -8,8 +8,10 @@ Pachinko WebSocket backend (API Gateway WebSocket + Lambda + DynamoDB) を AWS S
 - `StageName` (デフォルト: `Prod`) — WebSocket ステージ名。URL に反映されます。
 - `ApiName` (デフォルト: `pachinko-ws`) — WebSocket API の論理名。
 - `ConnectionsTableName` (デフォルト: `pachinko_ws_connections`) — コネクション管理用 DynamoDB テーブル名。
-- `AdminSecretParameter` (デフォルト: `/pachinko/admin/secret`) — 管理用シークレットを格納した SSM パラメータのパス。
+- `AdminSecretBasePath` (デフォルト: `/pachinko`) — 管理用シークレットを格納する SSM パラメータのベースパス。実際に参照されるパラメータキーは `${AdminSecretBasePath}/${StageName}/admin/secret` となります。
 - `AdminSecretVersion` (デフォルト: `1`) — 上記パラメータのバージョン。
+
+> 例: デフォルト設定（StageName=`Prod`, AdminSecretBasePath=`/pachinko`）でデプロイする場合は、`/pachinko/Prod/admin/secret` に SecureString パラメータを事前作成しておく必要があります。
 
 ## ビルド / デプロイ手順
 ### 前提
@@ -34,11 +36,23 @@ sam deploy \
     StageName=customerA \
     ApiName=pachinko-ws-customerA \
     ConnectionsTableName=pachinko_ws_connections_customerA \
-    AdminSecretParameter=/pachinko/customerA/admin/secret \
+    AdminSecretBasePath=/pachinko \
     AdminSecretVersion=1
 ```
 
 以降は同じ `--config-env customerA` を付けて実行するだけで、同一スタック（顧客/ブランチ専用）に更新デプロイできます。
+
+> SSM パラメータをまだ作成していない場合
+> 
+> デプロイ前に、`AdminSecretBasePath` と `StageName` を使ったパス（例: `/pachinko/customerA/admin/secret`）に管理者シークレットを登録しておきます。
+> 
+> ```bash
+> aws ssm put-parameter \
+>   --name /pachinko/customerA/admin/secret \
+>   --type SecureString \
+>   --value "YOUR_SECRET" \
+>   --overwrite
+> ```
 
 ### 3. 2 回目以降のデプロイ
 ```bash
@@ -59,6 +73,7 @@ sam delete --stack-name pachinko-ws-customerA
 1. エンドポイント URL の確認
    ```bash
    export STACK=pachinko-ws-customerA
+   export STAGE=customerA   # デプロイ時の StageName と合わせる
    export WSS_URL=$(aws cloudformation describe-stacks \
      --stack-name $STACK \
      --query "Stacks[0].Outputs[?OutputKey=='WebSocketWssUrl'].OutputValue" \
@@ -69,10 +84,10 @@ sam delete --stack-name pachinko-ws-customerA
 2. SSM から管理者シークレットを取得
    ```bash
    export ADMIN_SECRET=$(aws ssm get-parameter \
-     --name /pachinko/customerA/admin/secret \
-     --with-decryption \
-     --query Parameter.Value \
-     --output text)
+    --name /pachinko/${STAGE}/admin/secret \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text)
    ```
 
 3. WebSocket 接続を作成
