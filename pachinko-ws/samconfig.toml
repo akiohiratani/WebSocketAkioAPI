@@ -31,3 +31,26 @@ warm_containers = "EAGER"
 
 [default.local_start_lambda.parameters]
 warm_containers = "EAGER"
+
+[AkioHiratani.deploy.parameters]
+stack_name = "pachinko-ws-AkioHiratani"
+resolve_s3 = true
+s3_prefix = "pachinko-ws-AkioHiratani"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "StageName=\"AkioHiratani\" ApiName=\"pachinko-ws-AkioHiratani\" ConnectionsTableName=\"pachinko_ws_connections_AkioHiratani\" AdminSecretParameter=\"/pachinko/AkioHiratani/admin/secret\" AdminSecretVersion=\"1\""
+image_repositories = []
+
+[AkioHiratani.global.parameters]
+region = "ap-northeast-1"
+
+["[AkioHiratani".deploy.parameters]
+stack_name = "pachinko-ws-AkioHiratani"
+resolve_s3 = true
+s3_prefix = "pachinko-ws-AkioHiratani"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "StageName=\"AkioHiratani\" ApiName=\"pachinko-ws-AkioHiratani\" ConnectionsTableName=\"pachinko_ws_connections_AkioHiratani\" AdminSecretParameter=\"AkioHiratani\" AdminSecretVersion=\"1\""
+image_repositories = []
+
+["[AkioHiratani".global.parameters]
+region = "ap-northeast-1"

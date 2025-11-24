@@ -40,6 +40,9 @@ sam deploy \
     AdminSecretVersion=1
 ```
 
+- AWS Systems Manager > パラメータストアで、シークレットキーは作成すること!!!!
+
+
 以降は同じ `--config-env customerA` を付けて実行するだけで、同一スタック（顧客/ブランチ専用）に更新デプロイできます。
 
 > SSM パラメータをまだ作成していない場合
