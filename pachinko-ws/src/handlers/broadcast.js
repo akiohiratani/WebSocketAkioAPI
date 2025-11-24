@@ -3,16 +3,6 @@ import { ApiGatewayManagementApiClient, PostToConnectionCommand } from "@aws-sdk
 
 const ddb = new DynamoDBClient({});
 
-function mulberry32(seed) {
-  // 軽量・再現性のある擬似乱数
-  return function() {
-    let t = (seed += 0x6D2B79F5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export const handler = async (event) => {
   // 管理者権限の簡易チェック
   const body = event.body ? JSON.parse(event.body) : {};
@@ -20,12 +10,14 @@ export const handler = async (event) => {
     return { statusCode: 403, body: "forbidden" };
   }
 
+  const winIndex = Number(body.winIndex);
+  if (!Number.isInteger(winIndex)) {
+    return { statusCode: 400, body: "winIndex must be an integer" };
+  }
+
   // 抽選パラメータ生成（すべてのクライアントで共有）
   const serverNow = Date.now();
   const startAt = serverNow + 3000;            // 3秒後に一斉開始
-  const seed = Math.floor(Math.random() * 1e9);
-  const rng = mulberry32(seed);
-  const winIndex = Math.floor(rng() * 12);     // 例: 12分割ルーレット
 
   // 接続者取得
   let items = [];
@@ -48,7 +40,6 @@ export const handler = async (event) => {
 
   const payload = JSON.stringify({
     type: "roundStart",
-    seed,
     winIndex,
     startAt,   // epoch ms
     serverNow  // クライアントの時計補正用

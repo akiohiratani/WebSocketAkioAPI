@@ -1,127 +1,104 @@
 # pachinko-ws
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+Pachinko WebSocket backend (API Gateway WebSocket + Lambda + DynamoDB) を AWS SAM でデプロイするためのプロジェクトです。ブランチ / 顧客ごとに CloudFormation スタックを分けられるよう、テンプレートをパラメータ化しています。
 
-- hello-world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- hello-world/tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+## テンプレートの主なカスタマイズ項目
+`template.yaml` で以下をパラメータ化しています。ブランチ名や顧客名を入れてリソースの衝突を避けてください。
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+- `StageName` (デフォルト: `Prod`) — WebSocket ステージ名。URL に反映されます。
+- `ApiName` (デフォルト: `pachinko-ws`) — WebSocket API の論理名。
+- `ConnectionsTableName` (デフォルト: `pachinko_ws_connections`) — コネクション管理用 DynamoDB テーブル名。
+- `AdminSecretBasePath` (デフォルト: `/pachinko`) — 管理用シークレットを格納する SSM パラメータのベースパス。実際に参照されるパラメータキーは `${AdminSecretBasePath}/${StageName}/admin/secret` となります。
+- `AdminSecretVersion` (デフォルト: `1`) — 上記パラメータのバージョン。
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+> 例: デフォルト設定（StageName=`Prod`, AdminSecretBasePath=`/pachinko`）でデプロイする場合は、`/pachinko/Prod/admin/secret` に SecureString パラメータを事前作成しておく必要があります。
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+## ビルド / デプロイ手順
+### 前提
+- AWS SAM CLI
+- Node.js 20 (npm 同梱)
+- Docker
 
-## Deploy the sample application
-
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
-
-To use the SAM CLI, you need the following tools.
-
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* Node.js - [Install Node.js 20](https://nodejs.org/en/), including the NPM package management tool.
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
-
-To build and deploy your application for the first time, run the following in your shell:
-
+### 1. ビルド
 ```bash
 sam build
-sam deploy --guided
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
-
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
-
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build` command.
+### 2. 初回デプロイ（顧客・ブランチごと）
+`--guided` でスタック名やパラメータを入力し、`--config-env` に顧客名やブランチ名を設定すると `samconfig.toml` にプロファイルとして保存できます。
 
 ```bash
-pachinko-ws$ sam build
+sam deploy \
+  --guided \
+  --config-env customerA \
+  --stack-name pachinko-ws-customerA \
+  --parameter-overrides \
+    StageName=customerA \
+    ApiName=pachinko-ws-customerA \
+    ConnectionsTableName=pachinko_ws_connections_customerA \
+    AdminSecretBasePath=/pachinko \
+    AdminSecretVersion=1
 ```
 
-The SAM CLI installs dependencies defined in `hello-world/package.json`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+以降は同じ `--config-env customerA` を付けて実行するだけで、同一スタック（顧客/ブランチ専用）に更新デプロイできます。
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+> SSM パラメータをまだ作成していない場合
+> 
+> デプロイ前に、`AdminSecretBasePath` と `StageName` を使ったパス（例: `/pachinko/customerA/admin/secret`）に管理者シークレットを登録しておきます。
+> 
+> ```bash
+> aws ssm put-parameter \
+>   --name /pachinko/customerA/admin/secret \
+>   --type SecureString \
+>   --value "YOUR_SECRET" \
+>   --overwrite
+> ```
 
-Run functions locally and invoke them with the `sam local invoke` command.
+### 3. 2 回目以降のデプロイ
+```bash
+sam deploy --config-env customerA
+```
+
+### 4. 後片付け
+顧客・ブランチごとに作成したスタック名を指定して削除します。
 
 ```bash
-pachinko-ws$ sam local invoke HelloWorldFunction --event events/event.json
+sam delete --stack-name pachinko-ws-customerA
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+## デプロイ後の WSS 動作確認
+- 事前に `wscat` を用意（例: `npm install -g wscat`）。
+- 管理者シークレットは SSM Parameter Store から取得します。
 
-```bash
-pachinko-ws$ sam local start-api
-pachinko-ws$ curl http://localhost:3000/
-```
+1. エンドポイント URL の確認
+   ```bash
+   export STACK=pachinko-ws-customerA
+   export STAGE=customerA   # デプロイ時の StageName と合わせる
+   export WSS_URL=$(aws cloudformation describe-stacks \
+     --stack-name $STACK \
+     --query "Stacks[0].Outputs[?OutputKey=='WebSocketWssUrl'].OutputValue" \
+     --output text)
+   echo $WSS_URL
+   ```
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
+2. SSM から管理者シークレットを取得
+   ```bash
+   export ADMIN_SECRET=$(aws ssm get-parameter \
+    --name /pachinko/${STAGE}/admin/secret \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text)
+   ```
 
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
+3. WebSocket 接続を作成
+   - メンバーとして接続: `wscat -c "$WSS_URL/?role=member"`
+   - 管理者として別ターミナルから接続: `wscat -c "$WSS_URL/?role=admin"`
 
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
+4. ラウンド開始イベントの送信（管理者側のターミナル）
+   WebSocket ルート `roundStart` に対し、送信したい整数（例では 7）を `winIndex` として渡します。全クライアントに同じ値が届きます。
+   ```json
+   {"action":"roundStart","secret":"$ADMIN_SECRET","winIndex":7}
+   ```
 
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-pachinko-ws$ sam logs -n HelloWorldFunction --stack-name pachinko-ws --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Unit tests
-
-Tests are defined in the `hello-world/tests` folder in this project. Use NPM to install the [Mocha test framework](https://mochajs.org/) and run unit tests.
-
-```bash
-pachinko-ws$ cd hello-world
-hello-world$ npm install
-hello-world$ npm run test
-```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
-```bash
-sam delete --stack-name pachinko-ws
-```
-
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+5. 受信確認
+   メンバー側の `wscat` セッションに `roundStart` メッセージが届き、`winIndex` が送信した整数（例: 7）になっていること、`startAt` や `serverNow` が含まれていることを確認してください。
