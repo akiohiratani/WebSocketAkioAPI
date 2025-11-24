@@ -51,3 +51,39 @@ sam deploy --config-env customerA
 ```bash
 sam delete --stack-name pachinko-ws-customerA
 ```
+
+## デプロイ後の WSS 動作確認
+- 事前に `wscat` を用意（例: `npm install -g wscat`）。
+- 管理者シークレットは SSM Parameter Store から取得します。
+
+1. エンドポイント URL の確認
+   ```bash
+   export STACK=pachinko-ws-customerA
+   export WSS_URL=$(aws cloudformation describe-stacks \
+     --stack-name $STACK \
+     --query "Stacks[0].Outputs[?OutputKey=='WebSocketWssUrl'].OutputValue" \
+     --output text)
+   echo $WSS_URL
+   ```
+
+2. SSM から管理者シークレットを取得
+   ```bash
+   export ADMIN_SECRET=$(aws ssm get-parameter \
+     --name /pachinko/customerA/admin/secret \
+     --with-decryption \
+     --query Parameter.Value \
+     --output text)
+   ```
+
+3. WebSocket 接続を作成
+   - メンバーとして接続: `wscat -c "$WSS_URL/?role=member"`
+   - 管理者として別ターミナルから接続: `wscat -c "$WSS_URL/?role=admin"`
+
+4. ラウンド開始イベントの送信（管理者側のターミナル）
+   WebSocket ルート `roundStart` に対し、以下メッセージを送信すると、全クライアントへ `roundStart` 通知が配信されます。
+   ```json
+   {"action":"roundStart","secret":"$ADMIN_SECRET"}
+   ```
+
+5. 受信確認
+   メンバー側の `wscat` セッションに `roundStart` メッセージが届き、`seed` や `startAt` などの抽選パラメータが確認できれば成功です。
