@@ -223,6 +223,9 @@ Resources:
     Properties:
       TableName: !Ref ConnectionsTableName
       BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       AttributeDefinitions:
         - AttributeName: connectionId
           AttributeType: S
