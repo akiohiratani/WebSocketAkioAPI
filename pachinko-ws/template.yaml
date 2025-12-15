@@ -9,7 +9,7 @@ Parameters:
     Description: Stage name used for the WebSocket endpoint (use branch or customer name)
   ApiName:
     Type: String
-    Default: pachinko-ws
+    Default: bingo-ws
     Description: WebSocket API name (unique per customer/branch)
   ConnectionsTableName:
     Type: String
@@ -17,7 +17,7 @@ Parameters:
     Description: DynamoDB table name for managing WebSocket connections
   AdminSecretBasePath:
     Type: String
-    Default: /pachinko
+    Default: /bingo
     Description: Base path in SSM Parameter Store that stores the admin secrets (per stage)
   AdminSecretVersion:
     Type: String
@@ -112,6 +112,9 @@ Resources:
       ApiId: !Ref WebSocketApi
       StageName: !Ref StageName
       AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 200     # 1秒あたりの平均リクエスト数
+        ThrottlingBurstLimit: 400    # バースト上限
 
   OnConnectFunction:
     Type: AWS::Serverless::Function

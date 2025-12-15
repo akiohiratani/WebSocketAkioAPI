@@ -105,3 +105,6 @@ sam delete --stack-name pachinko-ws-customerA
 
 5. 受信確認
    メンバー側の `wscat` セッションに `roundStart` メッセージが届き、`winIndex` が送信した整数（例: 7）になっていること、`startAt` や `serverNow` が含まれていることを確認してください。
+   - npx wscat -c "wss://kkblt3dovh.execute-api.ap-northeast-1.amazonaws.com/AkioHiratani?role=admin"
+   - npx wscat -c "wss://kkblt3dovh.execute-api.ap-northeast-1.amazonaws.com/AkioHiratani?role=member"
+   - {"action":"roundStart","secret":"20251124AkioHiratani", "winIndex":1}
