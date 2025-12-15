@@ -20,10 +20,12 @@ export const handler = async (event) => {
     switch (action) {
       case "connect": {
         const { connectionId, role, connectedAt, roomId } = payload;
+        const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour TTL
         const item = {
           connectionId: { S: connectionId },
           role: { S: role ?? "member" },
-          connectedAt: { N: String(connectedAt ?? Date.now()) }
+          connectedAt: { N: String(connectedAt ?? Date.now()) },
+          ttl: { N: String(expiresAt) }
         };
 
         if (typeof roomId === "string" && roomId) {
