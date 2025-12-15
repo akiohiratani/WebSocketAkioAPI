@@ -94,13 +94,13 @@ sam delete --stack-name pachinko-ws-customerA
    ```
 
 3. WebSocket 接続を作成
-   - メンバーとして接続: `wscat -c "$WSS_URL/?role=member"`
+   - メンバーとして接続（roomId を指定）: `wscat -c "$WSS_URL/?role=member&roomId=ROOM123"`
    - 管理者として別ターミナルから接続: `wscat -c "$WSS_URL/?role=admin"`
 
 4. ラウンド開始イベントの送信（管理者側のターミナル）
-   WebSocket ルート `roundStart` に対し、送信したい整数（例では 7）を `winIndex` として渡します。全クライアントに同じ値が届きます。
+   WebSocket ルート `roundStart` に対し、送信したい整数（例では 7）を `winIndex` として、送信先を識別する `roomId` と併せて渡します。同一の `roomId` で接続しているクライアントのみにメッセージが配送されます。
    ```json
-   {"action":"roundStart","secret":"$ADMIN_SECRET","winIndex":7}
+   {"action":"roundStart","secret":"$ADMIN_SECRET","roomId":"ROOM123","winIndex":7}
    ```
 
 5. 受信確認

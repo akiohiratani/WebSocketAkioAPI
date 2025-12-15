@@ -19,14 +19,20 @@ export const handler = async (event) => {
 
     switch (action) {
       case "connect": {
-        const { connectionId, role, connectedAt } = payload;
+        const { connectionId, role, connectedAt, roomId } = payload;
+        const item = {
+          connectionId: { S: connectionId },
+          role: { S: role ?? "member" },
+          connectedAt: { N: String(connectedAt ?? Date.now()) }
+        };
+
+        if (typeof roomId === "string" && roomId) {
+          item.roomId = { S: roomId };
+        }
+
         await ddb.send(new PutItemCommand({
           TableName: process.env.TABLE_NAME,
-          Item: {
-            connectionId: { S: connectionId },
-            role: { S: role ?? "member" },
-            connectedAt: { N: String(connectedAt ?? Date.now()) }
-          }
+          Item: item
         }));
         break;
       }
@@ -41,9 +47,14 @@ export const handler = async (event) => {
         break;
       }
       case "broadcast": {
-        const { winIndex } = payload;
+        const { winIndex, roomId } = payload;
         if (!Number.isInteger(Number(winIndex))) {
           console.error("invalid winIndex", winIndex);
+          break;
+        }
+
+        if (typeof roomId !== "string" || !roomId) {
+          console.error("missing roomId for broadcast");
           break;
         }
 
@@ -79,7 +90,9 @@ export const handler = async (event) => {
           serverNow
         });
 
-        for (const it of items) {
+        const targetConnections = items.filter((it) => (it.roomId?.S ?? "") === roomId);
+
+        for (const it of targetConnections) {
           const cid = it.connectionId.S;
           try {
             await mgmt.send(

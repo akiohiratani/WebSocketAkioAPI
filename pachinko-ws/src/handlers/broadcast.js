@@ -14,11 +14,16 @@ export const handler = async (event) => {
     return { statusCode: 400, body: "winIndex must be an integer" };
   }
 
+  const roomId = typeof body.roomId === "string" && body.roomId.trim() ? body.roomId.trim() : null;
+  if (!roomId) {
+    return { statusCode: 400, body: "roomId is required" };
+  }
+
   await sqs.send(new SendMessageCommand({
     QueueUrl: process.env.SQS_QUEUE_URL,
     MessageBody: JSON.stringify({
       action: "broadcast",
-      payload: { winIndex },
+      payload: { winIndex, roomId },
       meta: {
         domain: event.requestContext.domainName,
         stage: event.requestContext.stage
