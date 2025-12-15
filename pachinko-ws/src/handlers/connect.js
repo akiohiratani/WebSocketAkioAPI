@@ -1,19 +1,22 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 
-const ddb = new DynamoDBClient({});
+const sqs = new SQSClient({});
 
 export const handler = async (event) => {
   const connectionId = event.requestContext.connectionId;
   const role = event.queryStringParameters?.role ?? "member"; // "admin" or "member"
 
-  await ddb.send(new PutItemCommand({
-    TableName: process.env.TABLE_NAME,
-    Item: {
-      connectionId: { S: connectionId },
-      role: { S: role },
-      connectedAt: { N: String(Date.now()) }
-    }
+  await sqs.send(new SendMessageCommand({
+    QueueUrl: process.env.SQS_QUEUE_URL,
+    MessageBody: JSON.stringify({
+      action: "connect",
+      payload: {
+        connectionId,
+        role,
+        connectedAt: Date.now()
+      }
+    })
   }));
 
-  return { statusCode: 200, body: "connected" };
+  return { statusCode: 202, body: "accepted" };
 };

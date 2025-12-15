@@ -1,14 +1,17 @@
-import { DynamoDBClient, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 
-const ddb = new DynamoDBClient({});
+const sqs = new SQSClient({});
 
 export const handler = async (event) => {
   const connectionId = event.requestContext.connectionId;
 
-  await ddb.send(new DeleteItemCommand({
-    TableName: process.env.TABLE_NAME,
-    Key: { connectionId: { S: connectionId } }
+  await sqs.send(new SendMessageCommand({
+    QueueUrl: process.env.SQS_QUEUE_URL,
+    MessageBody: JSON.stringify({
+      action: "disconnect",
+      payload: { connectionId }
+    })
   }));
 
-  return { statusCode: 200, body: "disconnected" };
+  return { statusCode: 202, body: "accepted" };
 };
