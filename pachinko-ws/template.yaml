@@ -121,9 +121,12 @@ Resources:
     Properties:
       CodeUri: src/handlers/
       Handler: connect.handler
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref HandlerQueue
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConnectionsTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt HandlerQueue.QueueName
     Events:
       Connect:
         Type: Api
@@ -137,29 +140,36 @@ Resources:
     Properties:
       CodeUri: src/handlers/
       Handler: disconnect.handler
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref HandlerQueue
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConnectionsTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt HandlerQueue.QueueName
 
   OnDefaultFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/handlers/
       Handler: default.handler
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref HandlerQueue
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt HandlerQueue.QueueName
 
   BroadcastFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/handlers/
       Handler: broadcast.handler
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref HandlerQueue
       Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref ConnectionsTable
-        - Statement:
-            Effect: Allow
-            Action:
-              - execute-api:ManageConnections
-            Resource: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt HandlerQueue.QueueName
   OnConnectPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -183,6 +193,30 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*
+
+  HandlerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 120
+
+  QueueProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/handlers/
+      Handler: queueProcessor.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConnectionsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - execute-api:ManageConnections
+            Resource: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*
+      Events:
+        QueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt HandlerQueue.Arn
 
   ConnectionsTable:
     Type: AWS::DynamoDB::Table

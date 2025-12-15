@@ -12,6 +12,7 @@
   "type": "module",
   "dependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.920.0",
-    "@aws-sdk/client-dynamodb": "^3.920.0"
+    "@aws-sdk/client-dynamodb": "^3.920.0",
+    "@aws-sdk/client-sqs": "^3.920.0"
   }
 }
